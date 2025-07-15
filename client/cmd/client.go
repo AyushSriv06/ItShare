@@ -1,0 +1,62 @@
+package main
+
+import (
+	connection "ItShare/client/internal"
+	"ItShare/helper"
+	"bufio"
+	"flag"
+	"fmt"
+	"os"
+	"strings"
+)
+
+func promptForServerAddress() string {
+	reader := bufio.NewReader(os.Stdin)
+	
+	for {
+		address, _ := reader.ReadString('\n')
+		address = strings.TrimSpace(address)
+		
+		if !strings.Contains(address, ":") {
+			continue
+		}
+		
+		// Check if server is available at this address
+		
+		return address
+	}
+}
+
+func main() {
+	serverAddr := flag.String("server", "", "Server address in format host:port")
+	flag.Parse()
+	
+	
+	// If server address not provided via command line, ask user
+	address := *serverAddr
+	if address == "" {
+		address = promptForServerAddress()
+	} else {
+		
+		// Check if server is available
+		available, errMsg := helper.CheckServerAvailability(address)
+		if !available {
+			fmt.Print(errMsg)
+			return
+		}
+	}
+	
+	conn, err := connection.Connect(address)
+		if err != nil {
+		if err.Error() == "reconnect" {
+			goto startChat 
+		} else {
+			return
+		}
+	}
+
+	defer connection.Close(conn)
+
+	startChat:
+
+}
