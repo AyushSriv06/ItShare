@@ -4,6 +4,7 @@ import (
 	"ItShare/server/interfaces"
 	"fmt"
 	"net"
+	"time"
 )
 
 func Connect(address string) (net.Listener, error) {
@@ -30,6 +31,37 @@ func Start(server *interfaces.Server) {
 	fmt.Println("Server started on", server.Address)
 
 }
+
+func BroadcastMessage(content string, server *interfaces.Server, sender *interfaces.User) {
+	server.Mutex.Lock()
+	defer server.Mutex.Unlock()
+	for _, recipient := range server.Connections {
+		if recipient.IsOnline && recipient != sender {
+			_, _ = recipient.Conn.Write([]byte(fmt.Sprintf("%s: %s\n", sender.Username, content)))
+		}
+	}
+}
+
+func StartHeartBeat(interval time.Duration, server *interfaces.Server) {
+	ticker := time.NewTicker(interval)
+	go func() {
+		for range ticker.C {
+			server.Mutex.Lock()
+			for _, user := range server.Connections {
+				if user.IsOnline {
+					_, err := user.Conn.Write([]byte("PING\n"))
+					if err != nil {
+						fmt.Printf("User disconnected: %s\n", user.Username)
+						user.IsOnline = false
+						BroadcastMessage(fmt.Sprintf("User %s is now offline", user.Username), server, user)
+					}
+				}
+			}
+			server.Mutex.Unlock()
+		}
+	}()
+}
+
 
 
 
