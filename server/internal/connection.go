@@ -1,9 +1,11 @@
 package connection
 
 import (
+	"ItShare/helper"
 	"ItShare/server/interfaces"
 	"fmt"
 	"net"
+	"strings"
 	"time"
 )
 
@@ -20,16 +22,72 @@ func Close(conn net.Conn) {
 	conn.Close()
 }
 
-func Start(server *interfaces.Server) {
-	listen, err := net.Listen("tcp", server.Address)
-	if err != nil {
-		fmt.Println("error in listen")
-		panic(err)
+func HandleConnection(conn net.Conn, server *interfaces.Server) {
+	ipAddr := conn.RemoteAddr().String()
+	ip := strings.Split(ipAddr, ":")[0]
+	fmt.Println("New connection from", ip)
+	if existingUser := server.IpAddresses[ip]; existingUser != nil {
+		fmt.Println("Connection already exists for IP:", ip)
+		// Send reconnection signal with existing user data
+		reconnectMsg := fmt.Sprintf("/RECONNECT %s %s", existingUser.Username, existingUser.StoreFilePath)
+		_, err := conn.Write([]byte(reconnectMsg))
+		if err != nil {
+			fmt.Println("Error sending reconnect signal:", err)
+			return
+		}
+
+		// Update connection and online status
+		server.Mutex.Lock()
+		existingUser.Conn = conn
+		existingUser.IsOnline = true
+		server.Mutex.Unlock()
+
+		// Encrypt and broadcast welcome back message
+		welcomeMsg := fmt.Sprintf("User %s has rejoined the chat", existingUser.Username)
+		BroadcastMessage(welcomeMsg, server, existingUser)
+
+		// Start handling messages for the reconnected user
+		return
 	}
 
-	defer listen.Close()
-	fmt.Println("Server started on", server.Address)
+	buffer := make([]byte, 1024)
+	n, err := conn.Read(buffer)
+	if err != nil {
+		fmt.Println("error in read username")
+		return
+	}
+	username := string(buffer[:n])
 
+	n, err = conn.Read(buffer)
+	if err != nil {
+		fmt.Println("error in read storeFilePath")
+		return
+	}
+	storeFilePath := string(buffer[:n])
+
+	userId := helper.GenerateUserId()
+
+	user := &interfaces.User{
+		UserId:        userId,
+		Username:      username,
+		StoreFilePath: storeFilePath,
+		Conn:          conn,
+		IsOnline:      true,
+		IpAddress:     ip,
+	}
+
+	server.Mutex.Lock()
+	server.Connections[user.UserId] = user
+	server.IpAddresses[ip] = user
+	server.Mutex.Unlock()
+
+	welcomeMsg := fmt.Sprintf("User %s has joined the chat", username)
+	BroadcastMessage(welcomeMsg, server, user)
+
+	fmt.Printf("New user connected: %s (ID: %s)\n", username, userId)
+
+	// Start handling messages for the new user
+	
 }
 
 func BroadcastMessage(content string, server *interfaces.Server, sender *interfaces.User) {
