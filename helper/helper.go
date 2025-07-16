@@ -1,7 +1,9 @@
 package helper
 
 import (
+	"math/rand"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -21,4 +23,8 @@ func CheckServerAvailability(address string) (bool, string) {
 	}
 	conn.Close()
 	return true, ""
+}
+
+func GenerateUserId() string {
+	return strconv.Itoa(rand.Intn(10000000))
 }
