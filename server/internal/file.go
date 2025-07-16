@@ -63,3 +63,23 @@ func SendFile(server *interfaces.Server, senderId, recipientId, filePath string)
 		fmt.Printf("Error sending file to %s: %v\n", recipientId, err)
 	}
 }
+
+//sending download req
+func HandleDownloadRequest(server *interfaces.Server, conn net.Conn, senderId, recipientId, filePath string) {
+	sender, exists := server.Connections[senderId]
+	if !exists {
+		fmt.Printf("User %s not found\n", senderId)
+		return
+	}
+
+	if !sender.IsOnline {
+		fmt.Printf("User %s is not online\n", senderId)
+		return
+	}
+
+	_, err := sender.Conn.Write([]byte(fmt.Sprintf("/DOWNLOAD_REQUEST %s %s\n", recipientId, filePath)))
+	if err != nil {
+		fmt.Printf("Error sending file request to %s: %v\n", senderId, err)
+	}
+	fmt.Println("Download request sent successfully")
+}
