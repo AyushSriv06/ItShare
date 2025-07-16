@@ -67,6 +67,26 @@ func main() {
 
 	defer connection.Close(conn)
 
+	err = connection.UserInput("Username", conn)
+	if err != nil {
+		if err.Error() == "reconnect" {
+			goto startChat
+		} else {
+			fmt.Print(err)
+			return
+		}
+	}
+
+
+	err = connection.UserInput("Store File Path", conn)
+	if err != nil {
+		if err.Error() == "reconnect" {
+			goto startChat
+		} else {
+			fmt.Print(err)
+			return
+		}
+	}
 	startChat:
 
 }
