@@ -22,7 +22,17 @@ func promptForServerAddress() string {
 		}
 		
 		// Check if server is available at this address
-		
+				available, errMsg := helper.CheckServerAvailability(address)
+		if !available {
+			fmt.Print(errMsg)
+			retry, _ := reader.ReadString('\n')
+			retry = strings.TrimSpace(strings.ToLower(retry))
+			
+			if retry != "y" && retry != "yes" {
+				os.Exit(1)
+			}
+			continue
+		}
 		return address
 	}
 }
