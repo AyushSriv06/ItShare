@@ -5,6 +5,7 @@ import (
 	connection "ItShare/server/internal"
 	"flag"
 	"strings"
+	"time"
 )
 
 func main() {
@@ -22,6 +23,6 @@ func main() {
 		IpAddresses: make(map[string]*interfaces.User),
 		Messages:    make(chan interfaces.Message),
 	}
-
+	go connection.StartHeartBeat(100*time.Second, &server)
 	connection.Start(&server)
 }

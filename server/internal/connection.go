@@ -22,6 +22,27 @@ func Close(conn net.Conn) {
 	conn.Close()
 }
 
+func Start(server *interfaces.Server) {
+	listen, err := net.Listen("tcp", server.Address)
+	if err != nil {
+		fmt.Println("error in listen")
+		panic(err)
+	}
+
+	defer listen.Close()
+	fmt.Println("Server started on", server.Address)
+
+	for {
+		conn, err := listen.Accept()
+		if err != nil {
+			fmt.Println("error in accept")
+			continue
+		}
+
+		go HandleConnection(conn, server)
+	}
+}
+
 func HandleConnection(conn net.Conn, server *interfaces.Server) {
 	ipAddr := conn.RemoteAddr().String()
 	ip := strings.Split(ipAddr, ":")[0]
