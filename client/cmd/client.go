@@ -22,7 +22,17 @@ func promptForServerAddress() string {
 		}
 		
 		// Check if server is available at this address
-		
+				available, errMsg := helper.CheckServerAvailability(address)
+		if !available {
+			fmt.Print(errMsg)
+			retry, _ := reader.ReadString('\n')
+			retry = strings.TrimSpace(strings.ToLower(retry))
+			
+			if retry != "y" && retry != "yes" {
+				os.Exit(1)
+			}
+			continue
+		}
 		return address
 	}
 }
@@ -57,6 +67,26 @@ func main() {
 
 	defer connection.Close(conn)
 
+	err = connection.UserInput("Username", conn)
+	if err != nil {
+		if err.Error() == "reconnect" {
+			goto startChat
+		} else {
+			fmt.Print(err)
+			return
+		}
+	}
+
+
+	err = connection.UserInput("Store File Path", conn)
+	if err != nil {
+		if err.Error() == "reconnect" {
+			goto startChat
+		} else {
+			fmt.Print(err)
+			return
+		}
+	}
 	startChat:
 
 }
