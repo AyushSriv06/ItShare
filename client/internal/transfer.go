@@ -114,6 +114,49 @@ func UpdateTransferStatus(id string, status TransferStatus) {
 	transfer.Status = status
 }
 
+type CheckpointedReader struct {
+	Reader     io.Reader
+	BytesRead  int64
+	Transfer   *Transfer
+	ChunkSize  int
+	Buffer     []byte
+	PauseCheck func() bool
+}
+
+// NewCheckpointedReader creates a new CheckpointedReader
+func NewCheckpointedReader(reader io.Reader, transfer *Transfer, chunkSize int) *CheckpointedReader {
+	return &CheckpointedReader{
+		Reader:    reader,
+		Transfer:  transfer,
+		ChunkSize: chunkSize,
+		Buffer:    make([]byte, chunkSize),
+		PauseCheck: func() bool {
+			transfer.PauseLock.Lock()
+			defer transfer.PauseLock.Unlock()
+			return transfer.IsPaused
+		},
+	}
+}
+
+// Read implements io.Reader and supports pausing
+func (cr *CheckpointedReader) Read(p []byte) (n int, err error) {
+	// Check if transfer is paused
+	if cr.PauseCheck() {
+		// Sleep a bit and check again to avoid CPU spinning
+		time.Sleep(500 * time.Millisecond)
+		return 0, nil
+	}
+	
+	// Perform actual read
+	n, err = cr.Reader.Read(p)
+	
+	if n > 0 {
+		cr.BytesRead += int64(n)
+		cr.Transfer.BytesComplete = cr.BytesRead
+	}
+	
+	return n, err
+}
 
 // CheckpointedWriter is an io.Writer that supports pausing/resuming
 type CheckpointedWriter struct {
@@ -138,4 +181,21 @@ func NewCheckpointedWriter(writer io.Writer, transfer *Transfer, chunkSize int) 
 			return transfer.IsPaused
 		},
 	}
+}
+
+// Write implements io.Writer and supports pausing
+func (cw *CheckpointedWriter) Write(p []byte) (n int, err error) {
+	if cw.PauseCheck() {
+		time.Sleep(500 * time.Millisecond)
+		return 0, nil
+	}
+	
+	n, err = cw.Writer.Write(p)
+	
+	if n > 0 {
+		cw.BytesWritten += int64(n)
+		cw.Transfer.BytesComplete = cw.BytesWritten
+	}
+	
+	return n, err
 }
