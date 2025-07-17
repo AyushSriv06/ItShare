@@ -2,10 +2,11 @@ package connection
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"net"
-	"errors"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -78,4 +79,40 @@ func UserInput(attribute string, conn net.Conn) error {
 	}
 
 	return nil
+}
+
+func ReadLoop(conn net.Conn) {
+	for {
+		buffer := make([]byte, 1024)
+		n, err := conn.Read(buffer)
+		if err != nil {
+			fmt.Print( err)
+			return
+		}
+		message := string(buffer[:n])
+		switch {
+		case strings.HasPrefix(message, "/FILE_RESPONSE"):
+			args := strings.SplitN(message, " ", 5)
+			if len(args) != 5 {
+				continue
+			}
+			recipientId := args[1]
+			fileName := args[2]
+			fileSizeStr := strings.TrimSpace(args[3])
+			fileSize, err := strconv.ParseInt(fileSizeStr, 10, 64)
+			storeFilePath := args[4]
+			if err != nil {
+				continue
+			}
+
+			HandleFileTransfer(conn, recipientId, fileName, int64(fileSize), storeFilePath)
+			continue
+		case strings.HasPrefix(message, "/FOLDER_RESPONSE"):
+			args := strings.SplitN(message, " ", 5)
+			if len(args) != 5 {
+				continue
+			}
+			
+		}
+	}
 }
