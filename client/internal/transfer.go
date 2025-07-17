@@ -1,6 +1,7 @@
 package connection
 
 import (
+	"io"
 	"net"
 	"os"
 	"strconv"
@@ -67,10 +68,74 @@ var (
 	TransfersMutex    sync.RWMutex
 	transferIDCounter = 1
 )
+
+// RegisterTransfer adds a new transfer to the tracking system
+func RegisterTransfer(transfer *Transfer) {
+	TransfersMutex.Lock()
+	defer TransfersMutex.Unlock()
+	ActiveTransfers[transfer.ID] = transfer
+}
+
+
 func GenerateTransferID() string {
 	TransfersMutex.Lock()
 	defer TransfersMutex.Unlock()
 	id := strconv.Itoa(transferIDCounter)
 	transferIDCounter++
 	return id
+}
+
+// GetTransfer retrieves a transfer by ID
+func GetTransfer(id string) (*Transfer, bool) {
+	TransfersMutex.RLock()
+	defer TransfersMutex.RUnlock()
+	transfer, exists := ActiveTransfers[id]
+	return transfer, exists
+}
+
+
+// RemoveTransfer removes a completed or failed transfer
+func RemoveTransfer(id string) {
+	TransfersMutex.Lock()
+	defer TransfersMutex.Unlock()
+	delete(ActiveTransfers, id)
+}
+
+// UpdateTransferStatus updates the status of a transfer
+func UpdateTransferStatus(id string, status TransferStatus) {
+	transfer, exists := GetTransfer(id)
+	if !exists {
+		return
+	}
+	
+	transfer.PauseLock.Lock()
+	defer transfer.PauseLock.Unlock()
+	
+	transfer.Status = status
+}
+
+
+// CheckpointedWriter is an io.Writer that supports pausing/resuming
+type CheckpointedWriter struct {
+	Writer      io.Writer
+	BytesWritten int64
+	Transfer    *Transfer
+	ChunkSize   int
+	Buffer      []byte
+	PauseCheck  func() bool
+}
+
+// NewCheckpointedWriter creates a new CheckpointedWriter
+func NewCheckpointedWriter(writer io.Writer, transfer *Transfer, chunkSize int) *CheckpointedWriter {
+	return &CheckpointedWriter{
+		Writer:     writer,
+		Transfer:   transfer,
+		ChunkSize:  chunkSize,
+		Buffer:     make([]byte, chunkSize),
+		PauseCheck: func() bool {
+			transfer.PauseLock.Lock()
+			defer transfer.PauseLock.Unlock()
+			return transfer.IsPaused
+		},
+	}
 }
