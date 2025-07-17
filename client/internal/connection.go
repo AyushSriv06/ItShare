@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"ItShare/utils"
 )
 
 func Connect(address string) (net.Conn, error) {
@@ -161,6 +162,65 @@ func ReadLoop(conn net.Conn) {
 						}
 					}
 				}
+			}
+			if userCount == 0 {
+				fmt.Println(utils.InfoColor(" No users currently online"))
+			}
+
+			fmt.Println(utils.InfoColor("-------------------"))
+			continue
+		case strings.HasPrefix(message, "/LOOK_REQUEST"):
+			args := strings.SplitN(message, " ", 3)
+			if len(args) != 3 {
+				fmt.Println(utils.ErrorColor("❌ Invalid arguments. Use: /LOOK_REQUEST <storageFilePath> <userId>"))
+				continue
+			}
+			storageFilePath := args[2]
+			userId := args[1]
+			fmt.Println(utils.InfoColor("🔍 Processing directory lookup request from"), utils.UserColor(userId))
+			HandleLookupResponse(conn, storageFilePath, userId)
+			continue
+		case strings.HasPrefix(message, "/LOOK_RESPONSE"):
+			args := strings.SplitN(message, " ", 3)
+			if len(args) != 3 {
+				fmt.Println(utils.ErrorColor("❌ Invalid arguments. Use: /LOOK_RESPONSE <userId> <files>"))
+				continue
+			}
+			userId := args[1]
+			files := strings.Split(args[2], " ")
+
+			fmt.Println(utils.HeaderColor("\n📂 Directory Listing for User:"), utils.UserColor(userId))
+			fmt.Println(utils.InfoColor("-------------------------------------------"))
+
+			for _, file := range files {
+				if strings.HasPrefix(file, "[FOLDER]") {
+					fmt.Println(utils.WarningColor("📁"), utils.InfoColor(file))
+				} else if strings.HasPrefix(file, "[FILE]") {
+					fmt.Println(utils.SuccessColor("📄"), utils.InfoColor(file))
+				} else if strings.HasPrefix(file, "===") {
+					fmt.Println(utils.HeaderColor(file))
+				} else {
+					fmt.Println(utils.InfoColor(file))
+				}
+			}
+
+			fmt.Println(utils.InfoColor("-------------------------------------------\n"))
+			continue
+		case strings.HasPrefix(message, "/DOWNLOAD_REQUEST"):
+			args := strings.SplitN(message, " ", 3)
+			if len(args) != 3 {
+				fmt.Println(utils.ErrorColor("❌ Invalid arguments. Use: /DOWNLOAD_REQUEST <userId> <filename>"))
+				continue
+			}
+			userId := args[1]
+			filePath := args[2]
+			fmt.Println(utils.InfoColor("📤 Download request from"), utils.UserColor(userId), utils.InfoColor("for"), utils.InfoColor(filePath))
+			HandleDownloadResponse(conn, userId, filePath)
+			continue
+		default:
+			if strings.Contains(message, "has joined the chat") {
+			} else {
+				fmt.Println(message)
 			}
 		}
 	}
