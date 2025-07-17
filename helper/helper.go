@@ -1,9 +1,12 @@
 package helper
 
 import (
+	"archive/zip"
 	"bytes"
 	"crypto/md5"
+	"path/filepath"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"math/rand"
 	"net"
@@ -69,4 +72,48 @@ func CheckServerAvailability(address string) (bool, string) {
 
 func GenerateUserId() string {
 	return strconv.Itoa(rand.Intn(10000000))
+}
+
+// ExtractZip extracts a zip archive to the specified destination
+func ExtractZip(zipPath string, destPath string) error {
+	archive, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return fmt.Errorf("failed to open zip file: %v", err)
+	}
+	defer archive.Close()
+
+	for _, file := range archive.File {
+		filePath := filepath.Join(destPath, file.Name)
+
+		if file.FileInfo().IsDir() {
+			os.MkdirAll(filePath, os.ModePerm)
+			continue
+		}
+
+		// Ensure parent directory exists
+		if err := os.MkdirAll(filepath.Dir(filePath), os.ModePerm); err != nil {
+			return err
+		}
+
+		dstFile, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
+		if err != nil {
+			return err
+		}
+
+		srcFile, err := file.Open()
+		if err != nil {
+			dstFile.Close()
+			return err
+		}
+
+		_, err = io.Copy(dstFile, srcFile)
+		srcFile.Close()
+		dstFile.Close()
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
