@@ -70,6 +70,18 @@ func CheckServerAvailability(address string) (bool, string) {
 	return true, ""
 }
 
+func IsPortInUse(port string) bool {
+	// Make sure we have just the port number
+	portNum := strings.TrimPrefix(port, ":")
+	
+	conn, err := net.DialTimeout("tcp", "localhost:"+portNum, time.Second)
+	if err != nil {
+		return false
+	}
+	conn.Close()
+	return true
+}
+
 func GenerateUserId() string {
 	return strconv.Itoa(rand.Intn(10000000))
 }
