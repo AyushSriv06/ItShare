@@ -225,3 +225,103 @@ func ReadLoop(conn net.Conn) {
 		}
 	}
 }
+
+
+
+func WriteLoop(conn net.Conn) {
+	reader := bufio.NewReader(os.Stdin)
+	for {
+		fmt.Print(utils.CommandColor(">>> "))
+		message, _ := reader.ReadString('\n')
+		message = strings.TrimSpace(message)
+		switch {
+		case message == "exit":
+			fmt.Println(utils.InfoColor("👋 Goodbye!"))
+			conn.Close()
+			return
+		case message == "/help":
+			utils.PrintHelp()
+			continue
+		case strings.HasPrefix(message, "/sendfile"):
+			args := strings.SplitN(message, " ", 3)
+			if len(args) != 3 {
+				fmt.Println(utils.ErrorColor("❌ Invalid arguments. Use: /sendfile <userId> <filename>"))
+				continue
+			}
+			recipientId := args[1]
+			filePath := args[2]
+			fmt.Println(utils.InfoColor("📤 Sending file to"), utils.UserColor(recipientId))
+			HandleSendFile(conn, recipientId, filePath)
+			continue
+		case strings.HasPrefix(message, "/sendfolder"):
+			args := strings.SplitN(message, " ", 3)
+			if len(args) != 3 {
+				fmt.Println(utils.ErrorColor("❌ Invalid arguments. Use: /sendfolder <userId> <folderPath>"))
+				continue
+			}
+			recipientId := args[1]
+			folderPath := args[2]
+			fmt.Println(utils.InfoColor("📤 Sending folder to"), utils.UserColor(recipientId))
+			HandleSendFolder(conn, recipientId, folderPath)
+			continue
+		case strings.HasPrefix(message, "/lookup"):
+			args := strings.SplitN(message, " ", 2)
+			if len(args) != 2 {
+				fmt.Println(utils.ErrorColor("❌ Invalid arguments. Use: /lookup <userId>"))
+				continue
+			}
+			recipientId := args[1]
+			fmt.Println(utils.InfoColor("🔍 Looking up files for user"), utils.UserColor(recipientId))
+			HandleLookupRequest(conn, recipientId)
+			continue
+		case strings.HasPrefix(message, "/status"):
+			fmt.Println(utils.InfoColor("👥 Fetching online users..."))
+			_, err := conn.Write([]byte(message))
+			if err != nil {
+				fmt.Println(utils.ErrorColor("❌ Error checking status:"), err)
+				continue
+			}
+			continue
+		case strings.HasPrefix(message, "/download"):
+			args := strings.SplitN(message, " ", 3)
+			if len(args) != 3 {
+				fmt.Println(utils.ErrorColor("❌ Invalid arguments. Use: /download <userId> <filename>"))
+				continue
+			}
+			recipientId := args[1]
+			filePath := args[2]
+			fmt.Println(utils.InfoColor("📥 Requesting download from"), utils.UserColor(recipientId))
+			HandleDownloadRequest(conn, recipientId, filePath)
+			continue
+		case strings.HasPrefix(message, "/transfers"):
+			HandleListTransfers()
+			continue
+		case strings.HasPrefix(message, "/pause"):
+			args := strings.SplitN(message, " ", 2)
+			if len(args) != 2 {
+				fmt.Println(utils.ErrorColor("❌ Invalid arguments. Use: /pause <transferId>"))
+				continue
+			}
+			transferID := args[1]
+			HandlePauseTransfer(transferID)
+			continue
+		case strings.HasPrefix(message, "/resume"):
+			args := strings.SplitN(message, " ", 2)
+			if len(args) != 2 {
+				fmt.Println(utils.ErrorColor("❌ Invalid arguments. Use: /resume <transferId>"))
+				continue
+			}
+			transferID := args[1]
+			HandleResumeTransfer(transferID)
+			continue
+		default:
+			if message != "" {
+				_, err := conn.Write([]byte(message))
+				if err != nil {
+					fmt.Println(utils.ErrorColor("❌ Error sending message:"), err)
+					return
+				}
+			}
+		}
+	}
+}
