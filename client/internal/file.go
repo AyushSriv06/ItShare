@@ -192,6 +192,14 @@ func HandleFileTransfer(conn net.Conn, recipientId, fileName string, fileSize in
 	RemoveTransfer(transferID)
 }
 
+func HandleDownloadRequest(conn net.Conn, recipientId, filePath string) {
+	_, err := conn.Write([]byte(fmt.Sprintf("/DOWNLOAD_REQUEST %s %s\n", recipientId, filePath)))
+	if err != nil {
+		fmt.Println("Error sending file request:", err)
+		return
+	}
+	fmt.Println("File download request sent successfully")
+}
 
 func HandleDownloadResponse(conn net.Conn, userId, filePath string) {
 	cleanPath := filepath.Clean(strings.TrimSpace(filePath))
