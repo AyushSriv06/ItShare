@@ -90,5 +90,6 @@ func main() {
 	startChat:
 
 	go connection.ReadLoop(conn)
+	connection.WriteLoop(conn)
 
 }

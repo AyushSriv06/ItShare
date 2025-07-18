@@ -103,6 +103,57 @@ func RemoveTransfer(id string) {
 	delete(ActiveTransfers, id)
 }
 
+// PauseTransfer pauses an active transfer
+func PauseTransfer(id string) error {
+	transfer, exists := GetTransfer(id)
+	if !exists {
+		return fmt.Errorf("transfer with ID %s not found", id)
+	}
+	
+	transfer.PauseLock.Lock()
+	defer transfer.PauseLock.Unlock()
+	
+	if transfer.Status != Active {
+		return fmt.Errorf("cannot pause transfer with status: %s", transfer.Status)
+	}
+	
+	transfer.Status = Paused
+	transfer.IsPaused = true
+	
+	// Update progress bar to show paused status
+	if transfer.ProgressBar != nil {
+		transfer.ProgressBar.SetPaused(true)
+	}
+	
+	return nil
+}
+
+// ResumeTransfer resumes a paused transfer
+func ResumeTransfer(id string) error {
+	transfer, exists := GetTransfer(id)
+	if !exists {
+		return fmt.Errorf("transfer with ID %s not found", id)
+	}
+	
+	transfer.PauseLock.Lock()
+	defer transfer.PauseLock.Unlock()
+	
+	if transfer.Status != Paused {
+		return fmt.Errorf("cannot resume transfer with status: %s", transfer.Status)
+	}
+	
+	transfer.Status = Active
+	transfer.IsPaused = false
+	
+	// Update progress bar to show active status
+	if transfer.ProgressBar != nil {
+		transfer.ProgressBar.SetPaused(false)
+	}
+	
+	return nil
+}
+
+
 // UpdateTransferStatus updates the status of a transfer
 func UpdateTransferStatus(id string, status TransferStatus) {
 	transfer, exists := GetTransfer(id)
