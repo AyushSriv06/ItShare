@@ -1,6 +1,8 @@
 package connection
 
 import (
+	"fmt"
+	"ItShare/utils"
 	"io"
 	"net"
 	"os"
@@ -198,4 +200,75 @@ func (cw *CheckpointedWriter) Write(p []byte) (n int, err error) {
 	}
 	
 	return n, err
+}
+
+
+
+// HandleListTransfers handles the /transfers command
+func HandleListTransfers() {
+	transfers := ListTransfers()
+	
+	if len(transfers) == 0 {
+		fmt.Println(utils.InfoColor("📡 No active transfers"))
+		return
+	}
+	
+	fmt.Println(utils.HeaderColor("📡 Active Transfers:"))
+	fmt.Println(utils.InfoColor("-----------------------------------"))
+	
+	for _, transfer := range transfers {
+		progress := float64(transfer.BytesComplete) / float64(transfer.Size) * 100
+		
+		statusColor := utils.InfoColor
+		statusIcon := ""
+		switch transfer.Status {
+		case Active:
+			statusColor = utils.SuccessColor
+			statusIcon = "▶ "
+		case Paused:
+			statusColor = utils.WarningColor
+			statusIcon = "⏸ "
+		case Completed:
+			statusColor = utils.SuccessColor
+			statusIcon = "✅ "
+		case Failed:
+			statusColor = utils.ErrorColor
+			statusIcon = "❌ "
+		}
+		
+		directionIcon := "📤 "
+		if transfer.Direction == "receive" {
+			directionIcon = "📥 "
+		}
+		
+		fmt.Printf("%s %s%s %s (%s)\n", 
+			statusColor(statusIcon),
+			directionIcon,
+			utils.CommandColor("ID: "+transfer.ID),
+			utils.InfoColor(transfer.Name),
+			statusColor(transfer.Status.String()))
+		
+		fmt.Printf("   Type: %s | Size: %s | Progress: %.1f%% (%s/%s)\n", 
+			formatTransferType(transfer.Type),
+			formatSize(transfer.Size),
+			progress,
+			formatSize(transfer.BytesComplete),
+			formatSize(transfer.Size))
+		
+		relationText := "From"
+		if transfer.Direction == "send" {
+			relationText = "To"
+		}
+		fmt.Printf("   %s: %s | Started: %s ago\n", 
+			relationText,
+			utils.UserColor(transfer.Recipient),
+			formatDuration(time.Since(transfer.StartTime)))
+		
+		fmt.Println(utils.InfoColor("   ---"))
+	}
+
+	fmt.Println(utils.InfoColor("Commands:"))
+	fmt.Printf("  %s - Pause a transfer\n", utils.CommandColor("/pause <transferId>"))
+	fmt.Printf("  %s - Resume a paused transfer\n", utils.CommandColor("/resume <transferId>"))
+	fmt.Println(utils.InfoColor("-----------------------------------"))
 }
