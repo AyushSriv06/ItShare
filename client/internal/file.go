@@ -69,6 +69,7 @@ func HandleSendFile(conn net.Conn, recipientId, filePath string) {
 		Checksum:      checksum,
 		StartTime:     time.Now(),
 		File:          file,
+		ProgressBar:   bar,
 		Connection:    conn,
 	}
 
@@ -132,6 +133,10 @@ func HandleFileTransfer(conn net.Conn, recipientId, fileName string, fileSize in
 	defer file.Close()
 
 
+	// Create progress bar with transfer ID
+	bar := utils.CreateProgressBar(fileSize, "📥 Receiving file")
+	bar.SetTransferId(transferID)
+
 	transfer := &Transfer{
 		ID:            transferID,
 		Type:          FileTransfer,
@@ -146,6 +151,7 @@ func HandleFileTransfer(conn net.Conn, recipientId, fileName string, fileSize in
 		StartTime:     time.Now(),
 		File:          file,
 		Connection:    conn,
+		ProgressBar:   bar,
 	}
 
 	RegisterTransfer(transfer)

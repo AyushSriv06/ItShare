@@ -83,6 +83,7 @@ func HandleSendFolder(conn net.Conn, recipientId, folderPath string) {
 		Checksum:      checksum,
 		StartTime:     time.Now(),
 		File:          zipFile,
+		ProgressBar:   bar,
 		Connection:    conn,
 	}
 
@@ -142,6 +143,11 @@ func HandleFolderTransfer(conn net.Conn, recipientId, folderName string, folderS
 		return
 	}
 
+	
+	// Create progress bar with transfer ID
+	bar := utils.CreateProgressBar(folderSize, "📥 Receiving folder")
+	bar.SetTransferId(transferID)
+
 	// Create transfer record
 	transfer := &Transfer{
 		ID:            transferID,
@@ -156,6 +162,7 @@ func HandleFolderTransfer(conn net.Conn, recipientId, folderName string, folderS
 		Checksum:      checksum,
 		StartTime:     time.Now(),
 		File:          zipFile,
+		ProgressBar:   bar,
 		Connection:    conn,
 	}
 

@@ -114,6 +114,15 @@ func ReadLoop(conn net.Conn) {
 				continue
 			}
 			
+			recipientId := args[1]
+			folderName := args[2]
+			folderSizeStr := strings.TrimSpace(args[3])
+			folderSize, err := strconv.ParseInt(folderSizeStr, 10, 64)
+			storeFilePath := args[4]
+			if err != nil {
+				fmt.Println(utils.ErrorColor("❌ Invalid folderSize. Use: /FOLDER_RESPONSE <userId> <folderName> <folderSize> <storeFilePath>"))
+				continue
+			}
 			HandleFolderTransfer(conn, recipientId, folderName, folderSize, storeFilePath)
 			continue
 		case strings.HasPrefix(message, "PING"):
@@ -157,6 +166,12 @@ func ReadLoop(conn net.Conn) {
 							if len(idPart) == 2 {
 								userId := strings.TrimSpace(idPart[0])
 								status := strings.TrimSpace(idPart[1])
+								fmt.Printf("%s %s %s %s %s\n",
+									utils.SuccessColor(" •"),
+									utils.UserColor(username),
+									utils.InfoColor("(ID:"),
+									utils.CommandColor(userId),
+									utils.InfoColor(")"+status))
 								continue
 							}
 						}
@@ -225,8 +240,6 @@ func ReadLoop(conn net.Conn) {
 		}
 	}
 }
-
-
 
 func WriteLoop(conn net.Conn) {
 	reader := bufio.NewReader(os.Stdin)

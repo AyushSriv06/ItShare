@@ -60,6 +60,7 @@ type Transfer struct {
 	StartTime     time.Time
 	File          *os.File
 	Connection    net.Conn
+	ProgressBar   *utils.ProgressBar
 	PauseLock     sync.Mutex
 	IsPaused      bool
 }
