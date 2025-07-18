@@ -348,3 +348,79 @@ func HandleListTransfers() {
 	fmt.Printf("  %s - Resume a paused transfer\n", utils.CommandColor("/resume <transferId>"))
 	fmt.Println(utils.InfoColor("-----------------------------------"))
 }
+
+// HandlePauseTransfer handles the /pause command
+func HandlePauseTransfer(transferID string) {
+	transfer, exists := GetTransfer(transferID)
+	if !exists {
+		fmt.Println(utils.ErrorColor("❌ Transfer not found:"), utils.CommandColor(transferID))
+		return
+	}
+	
+	if transfer.Status != Active {
+		fmt.Printf("%s Transfer %s is already %s\n", 
+			utils.WarningColor("⚠"),
+			utils.CommandColor(transferID),
+			utils.WarningColor(transfer.Status.String()))
+		return
+	}
+	
+	err := PauseTransfer(transferID)
+	if err != nil {
+		fmt.Println(utils.ErrorColor("❌ Failed to pause transfer:"), err)
+		return
+	}
+	
+	fmt.Printf("%s Transfer %s paused\n", 
+		utils.WarningColor("⏸"),
+		utils.CommandColor(transferID))
+	
+	fmt.Printf("  %s: %s (%s)\n", 
+		utils.InfoColor("Name"),
+		utils.InfoColor(transfer.Name),
+		utils.InfoColor(formatTransferType(transfer.Type)))
+		
+	fmt.Printf("  %s: %s / %s (%.1f%%)\n", 
+		utils.InfoColor("Progress"),
+		utils.InfoColor(formatSize(transfer.BytesComplete)),
+		utils.InfoColor(formatSize(transfer.Size)),
+		float64(transfer.BytesComplete) / float64(transfer.Size) * 100)
+}
+
+// HandleResumeTransfer handles the /resume command
+func HandleResumeTransfer(transferID string) {
+	transfer, exists := GetTransfer(transferID)
+	if !exists {
+		fmt.Println(utils.ErrorColor("❌ Transfer not found:"), utils.CommandColor(transferID))
+		return
+	}
+	
+	if transfer.Status != Paused {
+		fmt.Printf("%s Transfer %s is not paused (current status: %s)\n", 
+			utils.WarningColor("⚠"),
+			utils.CommandColor(transferID),
+			utils.WarningColor(transfer.Status.String()))
+		return
+	}
+	
+	err := ResumeTransfer(transferID)
+	if err != nil {
+		fmt.Println(utils.ErrorColor("❌ Failed to resume transfer:"), err)
+		return
+	}
+	
+	fmt.Printf("%s Transfer %s resumed\n", 
+		utils.SuccessColor("▶"),
+		utils.CommandColor(transferID))
+	
+	fmt.Printf("  %s: %s (%s)\n", 
+		utils.InfoColor("Name"),
+		utils.InfoColor(transfer.Name),
+		utils.InfoColor(formatTransferType(transfer.Type)))
+		
+	fmt.Printf("  %s: %s / %s (%.1f%%)\n", 
+		utils.InfoColor("Progress"),
+		utils.InfoColor(formatSize(transfer.BytesComplete)),
+		utils.InfoColor(formatSize(transfer.Size)),
+		float64(transfer.BytesComplete) / float64(transfer.Size) * 100)
+}
