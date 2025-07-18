@@ -202,7 +202,83 @@ func (cw *CheckpointedWriter) Write(p []byte) (n int, err error) {
 	return n, err
 }
 
+// formatTransferType returns a human-readable string for the transfer type
+func formatTransferType(t TransferType) string {
+	switch t {
+	case FileTransfer:
+		return "File"
+	case FolderTransfer:
+		return "Folder"
+	default:
+		return "Unknown"
+	}
+}
 
+// formatSize formats bytes into a human-readable string
+func formatSize(bytes int64) string {
+	const (
+		_          = iota
+		KB float64 = 1 << (10 * iota)
+		MB
+		GB
+		TB
+	)
+	
+	var size float64
+	var unit string
+	
+	switch {
+	case bytes >= int64(TB):
+		size = float64(bytes) / TB
+		unit = "TB"
+	case bytes >= int64(GB):
+		size = float64(bytes) / GB
+		unit = "GB"
+	case bytes >= int64(MB):
+		size = float64(bytes) / MB
+		unit = "MB"
+	case bytes >= int64(KB):
+		size = float64(bytes) / KB
+		unit = "KB"
+	default:
+		size = float64(bytes)
+		unit = "bytes"
+	}
+	
+	if size >= 100 || unit == "bytes" {
+		return fmt.Sprintf("%.0f %s", size, unit)
+	}
+	return fmt.Sprintf("%.1f %s", size, unit)
+}
+
+
+// formatDuration formats a duration into a human-readable string
+func formatDuration(d time.Duration) string {
+	if d.Hours() >= 24 {
+		days := int(d.Hours() / 24)
+		return fmt.Sprintf("%dd %dh", days, int(d.Hours())%24)
+	}
+	if d.Hours() >= 1 {
+		return fmt.Sprintf("%dh %dm", int(d.Hours()), int(d.Minutes())%60)
+	}
+	if d.Minutes() >= 1 {
+		return fmt.Sprintf("%dm %ds", int(d.Minutes()), int(d.Seconds())%60)
+	}
+	return fmt.Sprintf("%ds", int(d.Seconds()))
+}
+
+
+// ListTransfers returns all active transfers
+func ListTransfers() []*Transfer {
+	TransfersMutex.RLock()
+	defer TransfersMutex.RUnlock()
+	
+	transfers := make([]*Transfer, 0, len(ActiveTransfers))
+	for _, transfer := range ActiveTransfers {
+		transfers = append(transfers, transfer)
+	}
+	return transfers
+}
 
 // HandleListTransfers handles the /transfers command
 func HandleListTransfers() {
