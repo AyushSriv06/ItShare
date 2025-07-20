@@ -115,6 +115,7 @@ func HandleFileTransfer(conn net.Conn, recipientId, fileName string, fileSize in
 	if len(parts) >= 2 {
 		fileName = parts[0]
 		checksum = parts[1]
+		fmt.Println(utils.InfoColor("📋 Original checksum:"), utils.InfoColor(checksum))
 
 		if len(parts) >= 3 {
 			transferID = parts[2]
@@ -124,10 +125,17 @@ func HandleFileTransfer(conn net.Conn, recipientId, fileName string, fileSize in
 	} else {
 		transferID = GenerateTransferID()
 	}
+	
+	fmt.Printf("%s Receiving file: %s (Size: %s, Transfer ID: %s)\n",
+		utils.InfoColor("📥"),
+		utils.InfoColor(fileName),
+		utils.InfoColor(fmt.Sprintf("%d bytes", fileSize)),
+		utils.CommandColor(transferID))
+
 	filePath := filepath.Join(storeFilePath, fileName)
 	file, err := os.Create(filePath)
 	if err != nil {
-		fmt.Println( err)
+		fmt.Println(utils.ErrorColor("❌ Error creating file:"), err)
 		return
 	}
 	defer file.Close()
@@ -165,14 +173,15 @@ func HandleFileTransfer(conn net.Conn, recipientId, fileName string, fileSize in
 
 	if err != nil {
 		UpdateTransferStatus(transferID, Failed)
-		fmt.Println( err)
+		fmt.Println(utils.ErrorColor("\n❌ Error receiving file:"), err)
 		RemoveTransfer(transferID)
 		return
 	}
 
 	if n != fileSize {
 		UpdateTransferStatus(transferID, Failed)
-		fmt.Println("\n❌ Error: received")
+		fmt.Println(utils.ErrorColor("\n❌ Error: received"), utils.ErrorColor(n),
+			utils.ErrorColor("bytes, expected"), utils.ErrorColor(fileSize), utils.ErrorColor("bytes"))
 		RemoveTransfer(transferID)
 		return
 	}
@@ -182,17 +191,25 @@ func HandleFileTransfer(conn net.Conn, recipientId, fileName string, fileSize in
 		file.Close() // Close file before calculating checksum
 		receivedChecksum, err := helper.CalculateFileChecksum(filePath)
 		if err != nil {
-			fmt.Println(err)
-		} else {
-			fmt.Println(receivedChecksum)
+			fmt.Println(utils.ErrorColor("\n❌ Error calculating checksum:"), err)
+		}else {
+			fmt.Println(utils.InfoColor("\n📋 Calculated checksum:"), utils.InfoColor(receivedChecksum))
 
+			if helper.VerifyChecksum(checksum, receivedChecksum) {
+				fmt.Println(utils.SuccessColor("✅ Checksum verification successful! File integrity confirmed."))
+			} else {
+				fmt.Println(utils.ErrorColor("❌ Checksum verification failed! File may be corrupted."))
+			}
 		}
 	}
 
 	// Mark transfer as completed
 	UpdateTransferStatus(transferID, Completed)
 
-	fmt.Printf("%s File '%s' received successfully!\n",)
+	fmt.Printf("%s File '%s' received successfully!\n",
+		utils.SuccessColor("✅"),
+		utils.SuccessColor(fileName))
+	fmt.Println(utils.InfoColor("📂 Saved to:"), utils.InfoColor(filePath))
 
 	// Clean up the transfer
 	RemoveTransfer(transferID)

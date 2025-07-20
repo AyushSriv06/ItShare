@@ -54,6 +54,7 @@ func UserInput(attribute string, conn net.Conn) error {
 		for {
 			// Check if path exists
 			if _, err := os.Stat(input); os.IsNotExist(err) {
+				fmt.Println(utils.ErrorColor("❌ Error: Directory does not exist")) 
 				fmt.Println("Enter a valid " + attribute + ": ")
 				input, _ = reader.ReadString('\n')
 				input = strings.TrimSpace(input)
@@ -63,6 +64,7 @@ func UserInput(attribute string, conn net.Conn) error {
 			// Check if it's a directory
 			fileInfo, err := os.Stat(input)
 			if err != nil || !fileInfo.IsDir() {
+				fmt.Println(utils.ErrorColor("❌ Error: Path is not a directory"))
 				fmt.Println("Enter a valid " + attribute + ": ")
 				input, _ = reader.ReadString('\n')
 				input = strings.TrimSpace(input)
@@ -87,14 +89,16 @@ func ReadLoop(conn net.Conn) {
 		buffer := make([]byte, 1024)
 		n, err := conn.Read(buffer)
 		if err != nil {
-			fmt.Print( err)
+			fmt.Println(utils.ErrorColor("❌ Connection lost:"), err)
 			return
 		}
 		message := string(buffer[:n])
 		switch {
 		case strings.HasPrefix(message, "/FILE_RESPONSE"):
+			fmt.Println(utils.InfoColor("📥 File transfer starting..."))
 			args := strings.SplitN(message, " ", 5)
 			if len(args) != 5 {
+				fmt.Println(utils.ErrorColor("❌ Invalid arguments. Use: /FILE_RESPONSE <userId> <filename> <fileSize> <storeFilePath>"))
 				continue
 			}
 			recipientId := args[1]
@@ -103,14 +107,17 @@ func ReadLoop(conn net.Conn) {
 			fileSize, err := strconv.ParseInt(fileSizeStr, 10, 64)
 			storeFilePath := args[4]
 			if err != nil {
+				fmt.Println(utils.ErrorColor("❌ Invalid fileSize. Use: /FILE_RESPONSE <userId> <filename> <fileSize> <storeFilePath>"))
 				continue
 			}
 
 			HandleFileTransfer(conn, recipientId, fileName, int64(fileSize), storeFilePath)
 			continue
 		case strings.HasPrefix(message, "/FOLDER_RESPONSE"):
+			fmt.Println(utils.InfoColor("📥 Folder transfer starting..."))
 			args := strings.SplitN(message, " ", 5)
 			if len(args) != 5 {
+				fmt.Println(utils.ErrorColor("❌ Invalid arguments. Use: /FOLDER_RESPONSE <userId> <folderName> <folderSize> <storeFilePath>"))
 				continue
 			}
 			
@@ -128,10 +135,14 @@ func ReadLoop(conn net.Conn) {
 		case strings.HasPrefix(message, "PING"):
 			_, err = conn.Write([]byte("PONG\n"))
 			if err != nil {
-				fmt.Println(err)
+				fmt.Println(utils.ErrorColor("❌ Error responding to heartbeat:"), err)
 				continue
 			}
 		case message == "USERS:":
+
+			// Improved approach to accumulate the complete user list
+			fmt.Println(utils.HeaderColor("\n👥 Online Users:"))
+			fmt.Println(utils.InfoColor("-------------------"))
 
 			// Read the complete user list with timeout
 			userList := ""
@@ -234,6 +245,11 @@ func ReadLoop(conn net.Conn) {
 			continue
 		default:
 			if strings.Contains(message, "has joined the chat") {
+				fmt.Println(utils.WarningColor("👋 " + message))
+			} else if strings.Contains(message, "has rejoined the chat") {
+				fmt.Println(utils.WarningColor("🔄 " + message))
+			} else if strings.Contains(message, "is now offline") {
+				fmt.Println(utils.WarningColor("👋 " + message))
 			} else {
 				fmt.Println(message)
 			}
