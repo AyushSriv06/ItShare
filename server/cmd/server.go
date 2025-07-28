@@ -1,7 +1,7 @@
 package main
 
 import (
-	"ItShare/helper"
+	helper "ItShare/helper"
 	"ItShare/server/interfaces"
 	connection "ItShare/server/internal"
 	"ItShare/utils"
@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	port := flag.String("port", "8080", "The port to listen on")
+	port := flag.String("port", "8080", "Port to run the server on")
 	flag.Parse()
 
 	formattedPort := *port
@@ -25,16 +25,17 @@ func main() {
 		fmt.Println(utils.InfoColor("Please choose a different port or stop the other server."))
 		return
 	}
-
+	
 	utils.PrintBanner()
 	fmt.Println(utils.InfoColor("Starting server on port " + *port + "..."))
-
+	
 	server := interfaces.Server{
 		Address:     formattedPort,
 		Connections: make(map[string]*interfaces.User),
 		IpAddresses: make(map[string]*interfaces.User),
 		Messages:    make(chan interfaces.Message),
 	}
+
 	go connection.StartHeartBeat(100*time.Second, &server)
 	connection.Start(&server)
 }

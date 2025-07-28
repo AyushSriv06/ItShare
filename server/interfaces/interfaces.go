@@ -10,6 +10,7 @@ type Server struct {
 	Connections map[string]*User
 	IpAddresses map[string]*User
 	Messages    chan Message
+	Rooms       map[string]*Room
 	Mutex       sync.Mutex
 }
 
@@ -18,6 +19,7 @@ type Message struct {
 	SenderUsername string
 	Content        string
 	Timestamp      string
+	RoomID         string
 }
 
 type User struct {
@@ -27,5 +29,14 @@ type User struct {
 	Conn          net.Conn
 	IsOnline      bool
 	IpAddress     string
+	CurrentRoomID string
 }
 
+type Room struct {
+	ID          string
+	Name        string
+	Members     map[string]*User
+	CreatedBy   string
+	CreatedAt   string
+	Mutex       sync.RWMutex
+}

@@ -4,19 +4,19 @@ import (
 	"archive/zip"
 	"bytes"
 	"crypto/md5"
-	"path/filepath"
 	"encoding/hex"
 	"fmt"
 	"io"
 	"math/rand"
 	"net"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 )
 
-//computes an MD5 hash of a file
+// CalculateFileChecksum computes an MD5 hash of a file
 func CalculateFileChecksum(filePath string) (string, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -32,8 +32,6 @@ func CalculateFileChecksum(filePath string) (string, error) {
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
-// computes an MD5 hash from a reader without consuming it
-// Returns the checksum and a new reader that can be used normally
 func CalculateDataChecksum(reader io.Reader) (string, io.Reader, error) {
 	hash := md5.New()
 	data, err := io.ReadAll(reader)
@@ -48,9 +46,13 @@ func CalculateDataChecksum(reader io.Reader) (string, io.Reader, error) {
 	return checksum, bytes.NewReader(data), nil
 }
 
-// checks if two checksums match
+// VerifyChecksum checks if two checksums match
 func VerifyChecksum(original, received string) bool {
 	return original == received
+}
+
+func GenerateUserId() string {
+	return strconv.Itoa(rand.Intn(10000000))
 }
 
 func CheckServerAvailability(address string) (bool, string) {
@@ -70,6 +72,7 @@ func CheckServerAvailability(address string) (bool, string) {
 	return true, ""
 }
 
+
 func IsPortInUse(port string) bool {
 	// Make sure we have just the port number
 	portNum := strings.TrimPrefix(port, ":")
@@ -80,10 +83,6 @@ func IsPortInUse(port string) bool {
 	}
 	conn.Close()
 	return true
-}
-
-func GenerateUserId() string {
-	return strconv.Itoa(rand.Intn(10000000))
 }
 
 // CreateZipFromFolder creates a zip archive from a folder
@@ -102,27 +101,22 @@ func CreateZipFromFolder(folderPath string, zipPath string) error {
 			return err
 		}
 
-		// Get the relative path for the zip
 		relPath, err := filepath.Rel(folderPath, path)
 		if err != nil {
 			return err
 		}
 
-		// Skip if it's the root folder
 		if relPath == "." {
 			return nil
 		}
 
-		// Create zip header
 		header, err := zip.FileInfoHeader(info)
 		if err != nil {
 			return err
 		}
 
-		// Set relative path as name
 		header.Name = relPath
 
-		// Set compression
 		header.Method = zip.Deflate
 
 		writer, err := archive.CreateHeader(header)
@@ -130,12 +124,10 @@ func CreateZipFromFolder(folderPath string, zipPath string) error {
 			return err
 		}
 
-		// If it's a directory, just return
 		if info.IsDir() {
 			return nil
 		}
 
-		// Copy file contents
 		file, err := os.Open(path)
 		if err != nil {
 			return err
@@ -147,7 +139,6 @@ func CreateZipFromFolder(folderPath string, zipPath string) error {
 	})
 }
 
-// ExtractZip extracts a zip archive to the specified destination
 func ExtractZip(zipPath string, destPath string) error {
 	archive, err := zip.OpenReader(zipPath)
 	if err != nil {
@@ -190,3 +181,18 @@ func ExtractZip(zipPath string, destPath string) error {
 
 	return nil
 }
+
+// GetFolderSize returns the total size of a folder in bytes
+func GetFolderSize(folderPath string) (int64, error) {
+	var size int64
+	err := filepath.Walk(folderPath, func(_ string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			size += info.Size()
+		}
+		return nil
+	})
+	return size, err
+}	

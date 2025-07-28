@@ -1,17 +1,16 @@
 package connection
 
 import (
+	"ItShare/helper"
+	"ItShare/utils"
 	"fmt"
 	"io"
 	"net"
 	"os"
 	"path/filepath"
-	"ItShare/helper"
-	"ItShare/utils"
 	"strings"
 	"time"
 )
-
 
 func HandleSendFile(conn net.Conn, recipientId, filePath string) {
 	file, err := os.Open(filePath)
@@ -69,8 +68,8 @@ func HandleSendFile(conn net.Conn, recipientId, filePath string) {
 		Checksum:      checksum,
 		StartTime:     time.Now(),
 		File:          file,
-		ProgressBar:   bar,
 		Connection:    conn,
+		ProgressBar:   bar,
 	}
 
 	RegisterTransfer(transfer)
@@ -109,23 +108,23 @@ func HandleSendFile(conn net.Conn, recipientId, filePath string) {
 func HandleFileTransfer(conn net.Conn, recipientId, fileName string, fileSize int64, storeFilePath string) {
 	// Get checksum and transfer ID from the split content
 	parts := strings.SplitN(fileName, "|", 3)
-	transferID := ""
 	checksum := ""
+	transferID := ""
 
-	if len(parts) >= 2 {
+	if len(parts) == 3 {
 		fileName = parts[0]
 		checksum = parts[1]
-		fmt.Println(utils.InfoColor("📋 Original checksum:"), utils.InfoColor(checksum))
-
-		if len(parts) >= 3 {
-			transferID = parts[2]
-		} else {
-			transferID = GenerateTransferID()
-		}
+		transferID = parts[2]
+	} else if len(parts) == 2 {
+		fileName = parts[0]
+		checksum = parts[1]
+		transferID = GenerateTransferID()
 	} else {
 		transferID = GenerateTransferID()
 	}
-	
+
+	fmt.Printf("[DEBUG] After split: fileName: %s, checksum: %s, transferID: %s\n", fileName, checksum, transferID)
+
 	fmt.Printf("%s Receiving file: %s (Size: %s, Transfer ID: %s)\n",
 		utils.InfoColor("📥"),
 		utils.InfoColor(fileName),
@@ -139,7 +138,6 @@ func HandleFileTransfer(conn net.Conn, recipientId, fileName string, fileSize in
 		return
 	}
 	defer file.Close()
-
 
 	// Create progress bar with transfer ID
 	bar := utils.CreateProgressBar(fileSize, "📥 Receiving file")
@@ -167,9 +165,7 @@ func HandleFileTransfer(conn net.Conn, recipientId, fileName string, fileSize in
 	writer := NewCheckpointedWriter(file, transfer, 32768) // 32KB chunks
 
 	// Write to file and update progress bar simultaneously
-	n, err := io.CopyN(writer, io.TeeReader(conn,bar), fileSize)
-	
-	// bar will be defined late, it is the status bar
+	n, err := io.CopyN(writer, io.TeeReader(conn, bar), fileSize)
 
 	if err != nil {
 		UpdateTransferStatus(transferID, Failed)
@@ -192,7 +188,7 @@ func HandleFileTransfer(conn net.Conn, recipientId, fileName string, fileSize in
 		receivedChecksum, err := helper.CalculateFileChecksum(filePath)
 		if err != nil {
 			fmt.Println(utils.ErrorColor("\n❌ Error calculating checksum:"), err)
-		}else {
+		} else {
 			fmt.Println(utils.InfoColor("\n📋 Calculated checksum:"), utils.InfoColor(receivedChecksum))
 
 			if helper.VerifyChecksum(checksum, receivedChecksum) {
@@ -240,6 +236,6 @@ func HandleDownloadResponse(conn net.Conn, userId, filePath string) {
 	if !fileInfo.IsDir() {
 		HandleSendFile(conn, userId, absPath)
 	} else {
-		HandleSendFolder(conn, userId, absPath)
+		HandleSendFolder(conn, userId,absPath)
 	}
 }

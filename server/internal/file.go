@@ -8,23 +8,29 @@ import (
 	"strings"
 )
 
-//sending file metadata including the checksum
 func HandleFileTransfer(server *interfaces.Server, conn net.Conn, recipientId, fileName string, fileSize int64) {
+	// Extract checksum and transfer ID if present
 	checksum := ""
+	transferID := ""
 	fileNameWithChecksum := fileName
-	
+
 	parts := strings.SplitN(fileName, "|", 2)
 	if len(parts) == 2 {
 		fileName = parts[0]
 		checksum = parts[1]
-		fmt.Println("Original checksum:", checksum)
 	}
-	
+
+	if checksum != "" && transferID != "" {
+		fileNameWithChecksum = fmt.Sprintf("%s|%s|%s", fileName, checksum, transferID)
+	} else if checksum != "" {
+		fileNameWithChecksum = fmt.Sprintf("%s|%s", fileName, checksum)
+	}
+
 	recipient, exists := server.Connections[recipientId]
 	if exists {
 		// Include checksum in response if available
-		_, err := recipient.Conn.Write([]byte(fmt.Sprintf("/FILE_RESPONSE %s %s %d %s", 
-		    recipientId, fileNameWithChecksum, fileSize, recipient.StoreFilePath)))
+		_, err := recipient.Conn.Write([]byte(fmt.Sprintf("/FILE_RESPONSE\t%s\t%s\t%d\t%s\n",
+			recipientId, fileNameWithChecksum, fileSize, recipient.StoreFilePath)))
 		if err != nil {
 			fmt.Printf("Error sending file response to %s: %v\n", recipientId, err)
 		}
@@ -41,7 +47,6 @@ func HandleFileTransfer(server *interfaces.Server, conn net.Conn, recipientId, f
 	}
 }
 
-//sending the actual file
 func SendFile(server *interfaces.Server, senderId, recipientId, filePath string) {
 	server.Mutex.Lock()
 	defer server.Mutex.Unlock()
@@ -64,7 +69,6 @@ func SendFile(server *interfaces.Server, senderId, recipientId, filePath string)
 	}
 }
 
-//sending download req
 func HandleDownloadRequest(server *interfaces.Server, conn net.Conn, senderId, recipientId, filePath string) {
 	sender, exists := server.Connections[senderId]
 	if !exists {
