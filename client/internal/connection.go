@@ -2,6 +2,7 @@ package connection
 
 import (
 	"bufio"
+	"ItShare/utils"
 	"errors"
 	"fmt"
 	"net"
@@ -9,7 +10,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"ItShare/utils"
+)
+
+// Client state
+var (
+	currentRoomID   string
+	currentRoomName string
+	myUserID        string
 )
 
 func Connect(address string) (net.Conn, error) {
@@ -54,7 +61,7 @@ func UserInput(attribute string, conn net.Conn) error {
 		for {
 			// Check if path exists
 			if _, err := os.Stat(input); os.IsNotExist(err) {
-				fmt.Println(utils.ErrorColor("❌ Error: Directory does not exist")) 
+				fmt.Println(utils.ErrorColor("❌ Error: Directory does not exist"))
 				fmt.Println("Enter a valid " + attribute + ": ")
 				input, _ = reader.ReadString('\n')
 				input = strings.TrimSpace(input)
@@ -94,9 +101,16 @@ func ReadLoop(conn net.Conn) {
 		}
 		message := string(buffer[:n])
 		switch {
+		case strings.HasPrefix(message, "/USERID"):
+			parts := strings.SplitN(message, " ", 2)
+			if len(parts) == 2 {
+				myUserID = strings.TrimSpace(parts[1])
+				fmt.Println(utils.SuccessColor("[Info] Your user ID is: "), utils.CommandColor(myUserID))
+			}
+			continue
 		case strings.HasPrefix(message, "/FILE_RESPONSE"):
 			fmt.Println(utils.InfoColor("📥 File transfer starting..."))
-			args := strings.SplitN(message, " ", 5)
+			args := strings.SplitN(message, "\t", 5)
 			if len(args) != 5 {
 				fmt.Println(utils.ErrorColor("❌ Invalid arguments. Use: /FILE_RESPONSE <userId> <filename> <fileSize> <storeFilePath>"))
 				continue
@@ -105,7 +119,21 @@ func ReadLoop(conn net.Conn) {
 			fileName := args[2]
 			fileSizeStr := strings.TrimSpace(args[3])
 			fileSize, err := strconv.ParseInt(fileSizeStr, 10, 64)
-			storeFilePath := args[4]
+			storeFilePath := strings.TrimSpace(strings.ReplaceAll(args[4], "\n", ""))
+
+			fmt.Printf("[DEBUG] Parsed fileName: %s, fileSize: %s, storeFilePath: %s\n", fileName, fileSizeStr, storeFilePath)
+
+			// Patch: Extract only the valid directory path (Windows drive letter)
+			driveIdx := -1
+			for i := 0; i < len(storeFilePath)-1; i++ {
+				if ((storeFilePath[i] >= 'A' && storeFilePath[i] <= 'Z') || (storeFilePath[i] >= 'a' && storeFilePath[i] <= 'z')) && storeFilePath[i+1] == ':' {
+					driveIdx = i
+					break
+				}
+			}
+			if driveIdx > -1 {
+				storeFilePath = storeFilePath[driveIdx:]
+			}
 			if err != nil {
 				fmt.Println(utils.ErrorColor("❌ Invalid fileSize. Use: /FILE_RESPONSE <userId> <filename> <fileSize> <storeFilePath>"))
 				continue
@@ -115,31 +143,97 @@ func ReadLoop(conn net.Conn) {
 			continue
 		case strings.HasPrefix(message, "/FOLDER_RESPONSE"):
 			fmt.Println(utils.InfoColor("📥 Folder transfer starting..."))
-			args := strings.SplitN(message, " ", 5)
+			args := strings.SplitN(message, "\t", 5)
 			if len(args) != 5 {
 				fmt.Println(utils.ErrorColor("❌ Invalid arguments. Use: /FOLDER_RESPONSE <userId> <folderName> <folderSize> <storeFilePath>"))
 				continue
 			}
-			
 			recipientId := args[1]
 			folderName := args[2]
 			folderSizeStr := strings.TrimSpace(args[3])
 			folderSize, err := strconv.ParseInt(folderSizeStr, 10, 64)
 			storeFilePath := args[4]
+
+			fmt.Printf("[DEBUG] Parsed folderName: %s, folderSize: %s, storeFilePath: %s\n", folderName, folderSizeStr, storeFilePath)
+
+			// Patch: Extract only the valid directory path (Windows drive letter)
+			driveIdx := -1
+			for i := 0; i < len(storeFilePath)-1; i++ {
+				if ((storeFilePath[i] >= 'A' && storeFilePath[i] <= 'Z') || (storeFilePath[i] >= 'a' && storeFilePath[i] <= 'z')) && storeFilePath[i+1] == ':' {
+					driveIdx = i
+					break
+				}
+			}
+			if driveIdx > -1 {
+				storeFilePath = storeFilePath[driveIdx:]
+			}
 			if err != nil {
 				fmt.Println(utils.ErrorColor("❌ Invalid folderSize. Use: /FOLDER_RESPONSE <userId> <folderName> <folderSize> <storeFilePath>"))
 				continue
 			}
 			HandleFolderTransfer(conn, recipientId, folderName, folderSize, storeFilePath)
 			continue
+		case strings.HasPrefix(message, "ONLINE_USERS_LIST"):
+			// Handle online users list for room creation
+			handleOnlineUsersList(message)
+			continue
+		case strings.HasPrefix(message, "ROOM_CREATED"):
+			args := strings.SplitN(message, " ", 4)
+			if len(args) >= 4 {
+				roomID := args[1]
+				roomName := args[2]
+				creatorName := args[3]
+				fmt.Printf("%s Room '%s' created by %s (ID: %s)\n",
+					utils.SuccessColor("🏠"),
+					utils.InfoColor(roomName),
+					utils.UserColor(creatorName),
+					utils.CommandColor(roomID))
+				fmt.Printf("  Use %s to join this room\n", utils.CommandColor("/joinroom "+roomID))
+			}
+			continue
+		case strings.HasPrefix(message, "ROOM_JOINED"):
+			args := strings.SplitN(message, " ", 3)
+			if len(args) >= 3 {
+				roomID := args[1]
+				roomName := args[2]
+				currentRoomID = roomID
+				currentRoomName = roomName
+				fmt.Printf("%s Joined room '%s' (ID: %s)\n",
+					utils.SuccessColor("✅"),
+					utils.InfoColor(roomName),
+					utils.CommandColor(roomID))
+				fmt.Printf("  Messages will now be sent to this room. Use %s to leave.\n",
+					utils.CommandColor("/leaveroom"))
+			}
+			continue
+		case strings.HasPrefix(message, "ROOM_LEFT"):
+			args := strings.SplitN(message, " ", 2)
+			if len(args) >= 2 {
+				roomID := args[1]
+				fmt.Printf("%s Left room %s\n",
+					utils.WarningColor("👋"),
+					utils.CommandColor(roomID))
+				currentRoomID = ""
+				currentRoomName = ""
+				fmt.Println(utils.InfoColor("  Back to general chat"))
+			}
+			continue
+		case strings.HasPrefix(message, "ROOMS_LIST"):
+			handleRoomsList(message)
+			continue
+		case message == "ROOM_NOT_FOUND":
+			fmt.Println(utils.ErrorColor("❌ Room not found"))
+			continue
+		case message == "NOT_ROOM_MEMBER":
+			fmt.Println(utils.ErrorColor("❌ You are not a member of this room"))
+			continue
 		case strings.HasPrefix(message, "PING"):
-			_, err = conn.Write([]byte("PONG\n"))
+			_, err = conn.Write([]byte("PONG"))
 			if err != nil {
 				fmt.Println(utils.ErrorColor("❌ Error responding to heartbeat:"), err)
 				continue
 			}
 		case message == "USERS:":
-
 			// Improved approach to accumulate the complete user list
 			fmt.Println(utils.HeaderColor("\n👥 Online Users:"))
 			fmt.Println(utils.InfoColor("-------------------"))
@@ -187,8 +281,11 @@ func ReadLoop(conn net.Conn) {
 							}
 						}
 					}
+					// Fallback to original formatting if parsing fails
+					fmt.Println(utils.SuccessColor(" • "), utils.UserColor(line))
 				}
 			}
+
 			if userCount == 0 {
 				fmt.Println(utils.InfoColor(" No users currently online"))
 			}
@@ -243,8 +340,29 @@ func ReadLoop(conn net.Conn) {
 			fmt.Println(utils.InfoColor("📤 Download request from"), utils.UserColor(userId), utils.InfoColor("for"), utils.InfoColor(filePath))
 			HandleDownloadResponse(conn, userId, filePath)
 			continue
+		case strings.HasPrefix(message, "ROOM_MEMBERS_RESPONSE"):
+			args := strings.SplitN(message, " ", 3)
+			if len(args) != 3 {
+				fmt.Println(utils.ErrorColor("❌ Invalid ROOM_MEMBERS_RESPONSE"))
+				continue
+			}
+			userIDs := strings.Split(args[2], ",")
+			fmt.Println(utils.InfoColor("[Debug] ROOM_MEMBERS_RESPONSE userIDs:"), userIDs)
+			for _, uid := range userIDs {
+				if uid == myUserID || uid == "" {
+					continue
+				}
+				fmt.Println(utils.InfoColor("[Debug] Sending file to userID:"), uid)
+				HandleSendFile(conn, uid, pendingRoomFileSend.filePath)
+			}
+			pendingRoomFileSend.roomID = ""
+			pendingRoomFileSend.filePath = ""
+			continue
 		default:
-			if strings.Contains(message, "has joined the chat") {
+			if strings.HasPrefix(message, "[Room ") {
+				// Room message
+				fmt.Println(utils.InfoColor(message))
+			} else if strings.Contains(message, "has joined the chat") {
 				fmt.Println(utils.WarningColor("👋 " + message))
 			} else if strings.Contains(message, "has rejoined the chat") {
 				fmt.Println(utils.WarningColor("🔄 " + message))
@@ -257,9 +375,128 @@ func ReadLoop(conn net.Conn) {
 	}
 }
 
+// 1. Update handleOnlineUsersList to only display users, not prompt for input
+func handleOnlineUsersList(message string) {
+	parts := strings.SplitN(message, " ", 2)
+	if len(parts) < 2 {
+		fmt.Println(utils.ErrorColor("❌ No users available for room creation"))
+		return
+	}
+
+	userPairs := strings.Split(parts[1], " ")
+	if len(userPairs) == 0 {
+		fmt.Println(utils.ErrorColor("❌ No other users online"))
+		return
+	}
+
+	fmt.Println(utils.HeaderColor("\n👥 Online users:"))
+	fmt.Println(utils.InfoColor("--------------------------------"))
+
+	var users []struct {
+		ID   string
+		Name string
+	}
+
+	for _, pair := range userPairs {
+		if pair == "" {
+			continue
+		}
+		parts := strings.Split(pair, "|")
+		if len(parts) == 2 {
+			users = append(users, struct {
+				ID   string
+				Name string
+			}{parts[0], parts[1]})
+			fmt.Printf("%s %s %s %s\n",
+				utils.CommandColor(fmt.Sprintf("[%d]", len(users))),
+				utils.UserColor(parts[1]),
+				utils.InfoColor("(ID:"),
+				utils.InfoColor(parts[0]+")"))
+		}
+	}
+
+	if len(users) == 0 {
+		fmt.Println(utils.ErrorColor("❌ No other users online"))
+		return
+	}
+	fmt.Println(utils.InfoColor("--------------------------------"))
+
+	// Store the list for WriteLoop to use
+	onlineUsersForRoom = users
+	roomUserListReady = true
+}
+
+// 2. Add state for room creation
+var (
+	pendingRoomCreation string
+	pendingRoomFileSend struct {
+		roomID   string
+		filePath string
+	}
+	onlineUsersForRoom []struct {
+		ID   string
+		Name string
+	}
+	roomUserListReady bool
+)
+
+func handleRoomsList(message string) {
+	parts := strings.SplitN(message, " ", 2)
+	if len(parts) < 2 || strings.TrimSpace(parts[1]) == "" {
+		fmt.Println(utils.InfoColor("📭 You are not a member of any rooms"))
+		return
+	}
+
+	roomPairs := strings.Split(parts[1], " ")
+
+	fmt.Println(utils.HeaderColor("\n🏠 Your Rooms:"))
+	fmt.Println(utils.InfoColor("---------------"))
+
+	for _, pair := range roomPairs {
+		if pair == "" {
+			continue
+		}
+		parts := strings.Split(pair, "|")
+		if len(parts) == 3 {
+			roomID := parts[0]
+			roomName := parts[1]
+			memberCount := parts[2]
+
+			status := ""
+			if roomID == currentRoomID {
+				status = utils.SuccessColor(" [CURRENT]")
+			}
+
+			fmt.Printf("%s %s %s %s%s\n",
+				utils.InfoColor("🏠"),
+				utils.InfoColor(roomName),
+				utils.CommandColor("(ID: "+roomID+")"),
+				utils.InfoColor("Members: "+memberCount),
+				status)
+		}
+	}
+	fmt.Println(utils.InfoColor("---------------"))
+	fmt.Printf("Use %s to join a room\n", utils.CommandColor("/joinroom <roomID>"))
+}
+
+// 3. In WriteLoop, after /createroom, wait for user list, then prompt for selection and room name
 func WriteLoop(conn net.Conn) {
 	reader := bufio.NewReader(os.Stdin)
 	for {
+		if pendingRoomCreation != "" {
+			_, err := conn.Write([]byte(pendingRoomCreation))
+			if err != nil {
+				fmt.Println(utils.ErrorColor("❌ Error creating room:"), err)
+			}
+			pendingRoomCreation = ""
+			continue
+		}
+
+		prompt := ">>> "
+		if currentRoomID != "" {
+			prompt = fmt.Sprintf("[%s] >>> ", utils.InfoColor(currentRoomName))
+		}
+		fmt.Print(utils.CommandColor(prompt))
 		fmt.Print(utils.CommandColor(">>> "))
 		message, _ := reader.ReadString('\n')
 		message = strings.TrimSpace(message)
@@ -270,6 +507,84 @@ func WriteLoop(conn net.Conn) {
 			return
 		case message == "/help":
 			utils.PrintHelp()
+			continue
+		case message == "/createroom":
+			fmt.Println(utils.InfoColor("🏠 Fetching online users..."))
+			roomUserListReady = false
+			_, err := conn.Write([]byte("/GET_ONLINE_USERS"))
+			if err != nil {
+				fmt.Println(utils.ErrorColor("❌ Error fetching users:"), err)
+				continue
+			}
+			// Wait for user list to be ready
+			for !roomUserListReady {
+				time.Sleep(100 * time.Millisecond)
+			}
+			if len(onlineUsersForRoom) == 0 {
+				fmt.Println(utils.ErrorColor("❌ No other users online"))
+				continue
+			}
+			// Prompt for user selection
+			fmt.Print(utils.CommandColor("Select users (comma-separated numbers, e.g., 1,3,5): "))
+			selection, _ := reader.ReadString('\n')
+			selection = strings.TrimSpace(selection)
+			if selection == "" {
+				fmt.Println(utils.ErrorColor("❌ No users selected"))
+				continue
+			}
+			selectedNumbers := strings.Split(selection, ",")
+			var selectedUserIDs []string
+			for _, numStr := range selectedNumbers {
+				numStr = strings.TrimSpace(numStr)
+				num, err := strconv.Atoi(numStr)
+				if err != nil || num < 1 || num > len(onlineUsersForRoom) {
+					fmt.Printf("%s Invalid selection: %s\n", utils.ErrorColor("❌"), numStr)
+					continue
+				}
+				selectedUserIDs = append(selectedUserIDs, onlineUsersForRoom[num-1].ID)
+			}
+			if len(selectedUserIDs) == 0 {
+				fmt.Println(utils.ErrorColor("❌ No valid users selected"))
+				continue
+			}
+			// Prompt for room name
+			fmt.Print(utils.CommandColor("Enter room name: "))
+			roomName, _ := reader.ReadString('\n')
+			roomName = strings.TrimSpace(roomName)
+			if roomName == "" {
+				fmt.Println(utils.ErrorColor("❌ Room name cannot be empty"))
+				continue
+			}
+			pendingRoomCreation = fmt.Sprintf("/CREATE_ROOM %s %s", roomName, strings.Join(selectedUserIDs, ","))
+			fmt.Printf("%s Creating room '%s' with %d users...\n",
+				utils.InfoColor("🏠"),
+				utils.InfoColor(roomName),
+				len(selectedUserIDs))
+			roomUserListReady = false
+			continue
+		case strings.HasPrefix(message, "/joinroom"):
+			args := strings.SplitN(message, " ", 2)
+			if len(args) != 2 {
+				fmt.Println(utils.ErrorColor("❌ Invalid arguments. Use: /joinroom <roomID>"))
+				continue
+			}
+			roomID := strings.TrimSpace(args[1])
+			_, err := conn.Write([]byte(fmt.Sprintf("/JOIN_ROOM %s", roomID)))
+			if err != nil {
+				fmt.Println(utils.ErrorColor("❌ Error joining room:"), err)
+			}
+			continue
+		case message == "/leaveroom":
+			_, err := conn.Write([]byte("/LEAVE_ROOM"))
+			if err != nil {
+				fmt.Println(utils.ErrorColor("❌ Error leaving room:"), err)
+			}
+			continue
+		case message == "/rooms":
+			_, err := conn.Write([]byte("/LIST_ROOMS"))
+			if err != nil {
+				fmt.Println(utils.ErrorColor("❌ Error fetching rooms:"), err)
+			}
 			continue
 		case strings.HasPrefix(message, "/sendfile"):
 			args := strings.SplitN(message, " ", 3)
@@ -343,8 +658,27 @@ func WriteLoop(conn net.Conn) {
 			transferID := args[1]
 			HandleResumeTransfer(transferID)
 			continue
+		case strings.HasPrefix(message, "/sendfiletoroom"):
+			args := strings.SplitN(message, " ", 3)
+			if len(args) != 3 {
+				fmt.Println(utils.ErrorColor("❌ Invalid arguments. Use: /sendfiletoroom <roomID> <filePath>"))
+				continue
+			}
+			roomID := args[1]
+			filePath := args[2]
+			pendingRoomFileSend.roomID = roomID
+			pendingRoomFileSend.filePath = filePath
+			_, err := conn.Write([]byte("/ROOM_MEMBERS " + roomID + "\n"))
+			if err != nil {
+				fmt.Println(utils.ErrorColor("❌ Error requesting room members:"), err)
+			}
+			continue
 		default:
 			if message != "" {
+				// If in a room, send as room message
+				if currentRoomID != "" {
+					message = fmt.Sprintf("/ROOM_MESSAGE %s %s", currentRoomID, message)
+				}
 				_, err := conn.Write([]byte(message))
 				if err != nil {
 					fmt.Println(utils.ErrorColor("❌ Error sending message:"), err)
