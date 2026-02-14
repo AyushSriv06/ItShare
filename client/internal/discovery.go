@@ -1,8 +1,8 @@
 package connection
 
 import (
-	"bufio"
 	"ItShare/utils"
+	"bufio"
 	"fmt"
 	"net"
 	"os"
@@ -18,9 +18,9 @@ type DiscoveredServer struct {
 	Port    string
 }
 
-// DiscoverServers listens for UDP broadcast messages from DrizLink servers
+// DiscoverServers listens for UDP broadcast messages from ItShare servers
 func DiscoverServers(timeout time.Duration) ([]DiscoveredServer, error) {
-	fmt.Println(utils.InfoColor("🔍 Scanning for DrizLink servers on local network..."))
+	fmt.Println(utils.InfoColor("🔍 Scanning for ItShare servers on local network..."))
 
 	// Create UDP connection to listen for broadcasts
 	addr, err := net.ResolveUDPAddr("udp", ":9876")
@@ -56,8 +56,8 @@ func DiscoverServers(timeout time.Duration) ([]DiscoveredServer, error) {
 
 		message := string(buffer[:n])
 
-		// Parse broadcast message: DRIZLINK_SERVER:<server_ip>:<server_port>
-		if strings.HasPrefix(message, "DRIZLINK_SERVER:") {
+		// Parse broadcast message: ITSHARE_SERVER:<server_ip>:<server_port>
+		if strings.HasPrefix(message, "ITSHARE_SERVER:") {
 			parts := strings.Split(message, ":")
 			if len(parts) == 3 {
 				serverIP := parts[1]
@@ -91,7 +91,7 @@ func SelectServer(servers []DiscoveredServer) (string, error) {
 		return "", fmt.Errorf("no servers discovered")
 	}
 
-	fmt.Println(utils.HeaderColor("\n📡 Discovered DrizLink Servers:"))
+	fmt.Println(utils.HeaderColor("\n📡 Discovered ItShare Servers:"))
 	fmt.Println(utils.InfoColor("--------------------------------"))
 
 	for i, server := range servers {

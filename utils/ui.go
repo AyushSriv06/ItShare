@@ -23,9 +23,9 @@ var (
 )
 
 type ProgressBar struct {
-	Bar       *progressbar.ProgressBar
-	IsPaused  bool
-	Mutex     sync.Mutex
+	Bar        *progressbar.ProgressBar
+	IsPaused   bool
+	Mutex      sync.Mutex
 	TransferId string
 }
 
@@ -50,7 +50,7 @@ func CreateProgressBar(size int64, description string) *ProgressBar {
 			fmt.Fprint(os.Stdout, "\n")
 		}),
 	)
-	
+
 	return &ProgressBar{
 		Bar:      bar,
 		IsPaused: false,
@@ -60,20 +60,20 @@ func CreateProgressBar(size int64, description string) *ProgressBar {
 func (pb *ProgressBar) Write(p []byte) (n int, err error) {
 	pb.Mutex.Lock()
 	defer pb.Mutex.Unlock()
-	
+
 	if pb.IsPaused {
 		return len(p), nil
 	}
-	
+
 	return pb.Bar.Write(p)
 }
 
 func (pb *ProgressBar) SetPaused(paused bool) {
 	pb.Mutex.Lock()
 	defer pb.Mutex.Unlock()
-	
+
 	pb.IsPaused = paused
-	
+
 	description := pb.Bar.String()
 	if paused {
 		pb.Bar.Describe(fmt.Sprintf("%s %s", description, PausedColor("[PAUSED]")))
@@ -92,48 +92,47 @@ func (pb *ProgressBar) SetTransferId(id string) {
 
 // PrintHelp displays all available commands
 func PrintHelp() {
-	fmt.Println(HeaderColor("\n📚 DrizLink Help - Available Commands 📚"))
+	fmt.Println(HeaderColor("\n📚 ItShare Help - Available Commands 📚"))
 	fmt.Println(InfoColor("------------------------------------------------"))
-	
+
 	fmt.Println(HeaderColor("\n🔍 Server Discovery:"))
 	fmt.Printf("  %s - Servers are automatically discovered via UDP broadcast\n", InfoColor("• Auto-discovery"))
 	fmt.Printf("  %s - No need to manually share IP addresses\n", InfoColor("• Network scanning"))
 	fmt.Printf("  %s - Fallback to manual entry if needed\n", InfoColor("• Manual override"))
-	
+
 	fmt.Println(HeaderColor("\n🌐 General Commands:"))
 	fmt.Printf("  %s - Show online users\n", CommandColor("/status"))
 	fmt.Printf("  %s - Show this help message\n", CommandColor("/help"))
 	fmt.Printf("  %s - Disconnect and exit\n", CommandColor("exit"))
-	
+
 	fmt.Println(HeaderColor("\n🏠 Room Commands:"))
 	fmt.Printf("  %s - Create a new room with selected users\n", CommandColor("/createroom"))
 	fmt.Printf("  %s - Join a specific room\n", CommandColor("/joinroom <roomID>"))
 	fmt.Printf("  %s - Leave current room\n", CommandColor("/leaveroom"))
 	fmt.Printf("  %s - List your rooms\n", CommandColor("/rooms"))
-	
+
 	fmt.Println(HeaderColor("\n📁 File Operations:"))
 	fmt.Printf("  %s - Browse user's shared files\n", CommandColor("/lookup <userId>"))
 	fmt.Printf("  %s - Send a file to user\n", CommandColor("/sendfile <userId> <filePath>"))
 	fmt.Printf("  %s - Send a folder to user\n", CommandColor("/sendfolder <userId> <folderPath>"))
 	fmt.Printf("  %s - Download a file from user\n", CommandColor("/download <userId> <fileName>"))
-	
+
 	fmt.Println(HeaderColor("\n📡 Transfer Controls:"))
 	fmt.Printf("  %s - Show all active transfers\n", CommandColor("/transfers"))
 	fmt.Printf("  %s - Pause an active transfer\n", CommandColor("/pause <transferId>"))
 	fmt.Printf("  %s - Resume a paused transfer\n", CommandColor("/resume <transferId>"))
-	
+
 	fmt.Println(InfoColor("------------------------------------------------"))
 	fmt.Println(InfoColor("Type a message and press Enter to send to current room or everyone\n"))
 }
 
 func PrintBanner() {
 	banner := `
-    ____  __  _____ __                    
-   /  _/ / /_/ ___// /_  ____ __________ 
-   / /  / __/\__ \/ __ \/ __ '/ ___/ _ \
- _/ /  / /_ ___/ / / / / /_/ / /  /  __/
-/___/  \__//____/_/ /_/\__,_/_/   \___/ 
-                                       
+  ___ _   ___ _                 
+ |_ _| |_/ __| |_  __ _ _ _ ___ 
+  | ||  _\__ \ ' \/ _' | '_/ -_)
+ |___|\__|___/_||_\__,_|_| \___|
+                                
 `
-fmt.Println(color.New(color.FgCyan, color.Bold).Sprint(banner))
+	fmt.Println(color.New(color.FgCyan, color.Bold).Sprint(banner))
 }
