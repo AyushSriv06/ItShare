@@ -92,7 +92,7 @@ func (pb *ProgressBar) SetTransferId(id string) {
 
 // PrintHelp displays all available commands
 func PrintHelp() {
-	fmt.Println(HeaderColor("\n📚 ItShare Help - Available Commands 📚"))
+	fmt.Println(HeaderColor("\n📚 DrizLink Help - Available Commands 📚"))
 	fmt.Println(InfoColor("------------------------------------------------"))
 
 	fmt.Println(HeaderColor("\n🔍 Server Discovery:"))
@@ -128,11 +128,12 @@ func PrintHelp() {
 
 func PrintBanner() {
 	banner := `
-  ___ _   ___ _                 
- |_ _| |_/ __| |_  __ _ _ _ ___ 
-  | ||  _\__ \ ' \/ _' | '_/ -_)
- |___|\__|___/_||_\__,_|_| \___|
-                                
+    ____  __  _____ __                    
+   /  _/ / /_/ ___// /_  ____ __________ 
+   / /  / __/\__ \/ __ \/ __ '/ ___/ _ \
+ _/ /  / /_ ___/ / / / / /_/ / /  /  __/
+/___/  \__//____/_/ /_/\__,_/_/   \___/ 
+                                       
 `
 	fmt.Println(color.New(color.FgCyan, color.Bold).Sprint(banner))
 }

@@ -236,6 +236,6 @@ func HandleDownloadResponse(conn net.Conn, userId, filePath string) {
 	if !fileInfo.IsDir() {
 		HandleSendFile(conn, userId, absPath)
 	} else {
-		HandleSendFolder(conn, userId,absPath)
+		HandleSendFolder(conn, userId, absPath)
 	}
 }

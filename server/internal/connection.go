@@ -294,7 +294,7 @@ func handleUserMessages(conn net.Conn, user *interfaces.User, server *interfaces
 
 			HandleFolderTransfer(server, conn, recipientId, folderName, folderSize)
 			continue
-		case strings.TrimSpace(messageContent) == "PONG":
+		case messageContent == "PONG\n":
 			continue
 		case strings.HasPrefix(messageContent, "/status"):
 			_, err = conn.Write([]byte("USERS:"))
@@ -562,8 +562,8 @@ func StartDiscoveryBroadcast(serverAddress string) {
 	}
 	defer conn.Close()
 
-	// Broadcast message format: ITSHARE_SERVER:<server_ip>:<server_port>
-	broadcastMsg := fmt.Sprintf("ITSHARE_SERVER:%s:%s", serverIP, port)
+	// Broadcast message format: DRIZLINK_SERVER:<server_ip>:<server_port>
+	broadcastMsg := fmt.Sprintf("DRIZLINK_SERVER:%s:%s", serverIP, port)
 
 	fmt.Println(utils.InfoColor("📡 Broadcasting server presence on UDP port 9876"))
 	fmt.Println(utils.InfoColor("   Message:"), utils.CommandColor(broadcastMsg))
