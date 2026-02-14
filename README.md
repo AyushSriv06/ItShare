@@ -7,12 +7,12 @@ A peer-to-peer file sharing application with room-based communication and integr
 ## ✨ Features
 
 * **👤 User Authentication**: Connect with a username and maintain persistent sessions
-* **🏠 Room Management** *(under development)*: Create and join rooms for organized communication
+* **🏠 Room Management**: Create and join rooms for organized communication
 * **💬 Real-time Chat**: Send and receive messages globally or within specific rooms
 * **📁 File Sharing**: Transfer files directly between users
 * **📂 Folder Sharing**: Share entire folders with other users
 * **🔍 File Discovery**: Look up and browse other users' shared directories
-* **🎯 Room-based Operations** *(under development)*: File transfers and lookups work within room context
+* **🎯 Room-based Operations**: File transfers and communications work within room context
 * **🔄 Automatic Reconnection**: Seamlessly reconnect with your existing session
 * **👥 Status Tracking**: Monitor which users are currently online
 * **🎨 Colorful UI**: Enhanced CLI interface with colors and emojis
@@ -68,11 +68,11 @@ The application will validate:
 * Port availability before starting a server
 * Existence of shared folder paths
 
-## 🏠 Room-Based Architecture *(under development)*
+## 🏠 Room-Based Architecture
 
-> Room features are actively being developed and integrated. Below is a preview of the expected workflow and design.
+Rooms allow you to communicate and share files with a subset of connected users.
 
-### How Rooms Will Work
+### How Rooms Work
 
 1. **🌐 Global Discovery**: All connected users are visible via `/status` command
 2. **🏠 Room Creation**: Any user can create a room and invite specific users
@@ -90,16 +90,15 @@ The application will validate:
 | `/status` | Show online users                   |
 | `exit`    | Disconnect and exit the application |
 
-### Room Management 🏠 *(under development)*
+### Room Management 🏠
 
 | Command                                          | Description                               |
 | ------------------------------------------------ | ----------------------------------------- |
-| `/createroom <roomName> <userId1> [userId2] ...` | Create a new room with participants       |
+| `/createroom <roomName> <userId1,userId2,...>`  | Create a new room with participants       |
 | `/joinroom <roomId>`                             | Join an existing room                     |
-| `/leaveroom <roomId>`                            | Leave a room                              |
-| `/selectroom <roomId>`                           | Select active room for chat and transfers |
-| `/listrooms`                                     | List all available rooms                  |
-| `/roominfo <roomId>`                             | Show detailed room information            |
+| `/leaveroom`                                     | Leave current active room                 |
+| `/rooms`                                         | List all your available rooms             |
+| `/sendfiletoroom <roomId> <filePath>`            | Send a file to everyone in a room         |
 
 ### File Operations 📂
 
@@ -154,28 +153,26 @@ The application will validate:
   [Room: MyRoom] >>> Hello everyone in this room!
   ```
 
-## 🎯 Usage Examples *(for upcoming room support)*
+## 🎯 Usage Examples
 
 ### Creating and Using Rooms
 
 ```bash
 /status
-/createroom ProjectTeam 1234 5678
-/selectroom 1
+/createroom ProjectTeam 1234,5678
+/joinroom room_12345
 Hello team! Let's share some files.
-/sendfile 1234 /path/to/document.pdf
-/listrooms
-/roominfo 1
+/leaveroom
+/rooms
 ```
 
 ### File Sharing Workflow
 
 ```bash
-/createroom FileShare 2345
-/selectroom 1
+/sendfile 1234 /path/to/document.pdf
+/sendfolder 1234 /path/to/folder
+/sendfiletoroom room_12345 /path/to/file.txt
 /lookup 2345
-/sendfile 2345 /path/to/file.txt
-/sendfolder 2345 /path/to/folder
 /download 2345 filename.txt
 ```
 
@@ -194,4 +191,4 @@ The application implements several layers of security:
 
 ---
 
-**Made with ❤️ by the ItShare Team**
+**Made with ❤️ by ItShare Team**

@@ -55,9 +55,9 @@ func discoverAndSelectServer() string {
 	}
 
 	if len(servers) == 0 {
-		fmt.Println(utils.WarningColor("⚠ No ItShare servers found on local network"))
+		fmt.Println(utils.WarningColor("⚠ No DrizLink servers found on local network"))
 		fmt.Println(utils.InfoColor("You can either:"))
-		fmt.Println(utils.InfoColor("  1. Start an ItShare server on this network"))
+		fmt.Println(utils.InfoColor("  1. Start a DrizLink server on this network"))
 		fmt.Println(utils.InfoColor("  2. Enter a server address manually"))
 		return promptForManualServerAddress()
 	}
@@ -142,7 +142,7 @@ func main() {
 	}
 
 startChat:
-	fmt.Println(utils.HeaderColor("\n✨ Welcome to ItShare - P2P File Sharing! ✨"))
+	fmt.Println(utils.HeaderColor("\n✨ Welcome to DrizLink - P2P File Sharing! ✨"))
 	fmt.Println(utils.InfoColor("------------------------------------------------"))
 	fmt.Println(utils.SuccessColor("✅ Successfully connected to server!"))
 	fmt.Println(utils.InfoColor("🔍 Server auto-discovery is now enabled"))
