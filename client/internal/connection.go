@@ -1,8 +1,8 @@
 package connection
 
 import (
-	"bufio"
 	"ItShare/utils"
+	"bufio"
 	"errors"
 	"fmt"
 	"net"
@@ -152,7 +152,7 @@ func ReadLoop(conn net.Conn) {
 			folderName := args[2]
 			folderSizeStr := strings.TrimSpace(args[3])
 			folderSize, err := strconv.ParseInt(folderSizeStr, 10, 64)
-			storeFilePath := args[4]
+			storeFilePath := strings.TrimSpace(strings.ReplaceAll(args[4], "\n", ""))
 
 			fmt.Printf("[DEBUG] Parsed folderName: %s, folderSize: %s, storeFilePath: %s\n", folderName, folderSizeStr, storeFilePath)
 

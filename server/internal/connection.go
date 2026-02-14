@@ -57,30 +57,12 @@ func HandleConnection(conn net.Conn, server *interfaces.Server) {
 	ipAddr := conn.RemoteAddr().String()
 	ip := strings.Split(ipAddr, ":")[0]
 	fmt.Println("New connection from", ip)
-	if existingUser := server.IpAddresses[ip]; existingUser != nil {
-		fmt.Println("Connection already exists for IP:", ip)
-		// Send reconnection signal with existing user data
-		reconnectMsg := fmt.Sprintf("/RECONNECT %s %s", existingUser.Username, existingUser.StoreFilePath)
-		_, err := conn.Write([]byte(reconnectMsg))
-		if err != nil {
-			fmt.Println("Error sending reconnect signal:", err)
-			return
+	/*
+		// IP check disabled for local debugging
+		if existingUser := server.IpAddresses[ip]; existingUser != nil {
+			// ... code removed ...
 		}
-
-		// Update connection and online status
-		server.Mutex.Lock()
-		existingUser.Conn = conn
-		existingUser.IsOnline = true
-		server.Mutex.Unlock()
-
-		// Encrypt and broadcast welcome back message
-		welcomeMsg := fmt.Sprintf("User %s has rejoined the chat", existingUser.Username)
-		BroadcastMessage(welcomeMsg, server, existingUser)
-
-		// Start handling messages for the reconnected user
-		handleUserMessages(conn, existingUser, server)
-		return
-	}
+	*/
 
 	buffer := make([]byte, 1024)
 	n, err := conn.Read(buffer)
@@ -257,9 +239,9 @@ func handleUserMessages(conn net.Conn, user *interfaces.User, server *interfaces
 			BroadcastMessage(offlineMsg, server, user)
 			return
 		case strings.HasPrefix(messageContent, "/FILE_REQUEST"):
-			args := strings.SplitN(messageContent, " ", 5) // Updated to include checksum
+			args := strings.SplitN(messageContent, " ", 6) // Updated to include checksum and transferID
 			if len(args) < 4 {
-				fmt.Println("Invalid arguments. Use: /FILE_REQUEST <userId> <filename> <fileSize> [checksum]")
+				fmt.Println("Invalid arguments. Use: /FILE_REQUEST <userId> <filename> <fileSize> [checksum] [transferID]")
 				continue
 			}
 			recipientId := args[1]
@@ -267,10 +249,14 @@ func handleUserMessages(conn net.Conn, user *interfaces.User, server *interfaces
 			fileSizeStr := strings.TrimSpace(args[3])
 			fileSize, err := strconv.ParseInt(fileSizeStr, 10, 64)
 
-			// Include checksum in filename if provided
-			if len(args) == 5 {
+			// Include checksum and transferID in filename if provided
+			if len(args) >= 5 {
 				checksum := strings.TrimSpace(args[4])
 				fileName = fileName + "|" + checksum
+				if len(args) == 6 {
+					transferID := strings.TrimSpace(args[5])
+					fileName = fileName + "|" + transferID
+				}
 			}
 
 			if err != nil {
@@ -281,9 +267,9 @@ func handleUserMessages(conn net.Conn, user *interfaces.User, server *interfaces
 			HandleFileTransfer(server, conn, recipientId, fileName, fileSize)
 			continue
 		case strings.HasPrefix(messageContent, "/FOLDER_REQUEST"):
-			args := strings.SplitN(messageContent, " ", 5) // Updated to include checksum
+			args := strings.SplitN(messageContent, " ", 6) // Updated to include checksum and transferID
 			if len(args) < 4 {
-				fmt.Println("Invalid arguments. Use: /FOLDER_REQUEST <userId> <folderName> <folderSize> [checksum]")
+				fmt.Println("Invalid arguments. Use: /FOLDER_REQUEST <userId> <folderName> <folderSize> [checksum] [transferID]")
 				continue
 			}
 			recipientId := args[1]
@@ -291,10 +277,14 @@ func handleUserMessages(conn net.Conn, user *interfaces.User, server *interfaces
 			folderSizeStr := strings.TrimSpace(args[3])
 			folderSize, err := strconv.ParseInt(folderSizeStr, 10, 64)
 
-			// Include checksum in foldername if provided
-			if len(args) == 5 {
+			// Include checksum and transferID in foldername if provided
+			if len(args) >= 5 {
 				checksum := strings.TrimSpace(args[4])
 				folderName = folderName + "|" + checksum
+				if len(args) == 6 {
+					transferID := strings.TrimSpace(args[5])
+					folderName = folderName + "|" + transferID
+				}
 			}
 
 			if err != nil {
@@ -304,7 +294,7 @@ func handleUserMessages(conn net.Conn, user *interfaces.User, server *interfaces
 
 			HandleFolderTransfer(server, conn, recipientId, folderName, folderSize)
 			continue
-		case messageContent == "PONG\n":
+		case strings.TrimSpace(messageContent) == "PONG":
 			continue
 		case strings.HasPrefix(messageContent, "/status"):
 			_, err = conn.Write([]byte("USERS:"))
@@ -572,8 +562,8 @@ func StartDiscoveryBroadcast(serverAddress string) {
 	}
 	defer conn.Close()
 
-	// Broadcast message format: DRIZLINK_SERVER:<server_ip>:<server_port>
-	broadcastMsg := fmt.Sprintf("DRIZLINK_SERVER:%s:%s", serverIP, port)
+	// Broadcast message format: ITSHARE_SERVER:<server_ip>:<server_port>
+	broadcastMsg := fmt.Sprintf("ITSHARE_SERVER:%s:%s", serverIP, port)
 
 	fmt.Println(utils.InfoColor("📡 Broadcasting server presence on UDP port 9876"))
 	fmt.Println(utils.InfoColor("   Message:"), utils.CommandColor(broadcastMsg))

@@ -12,7 +12,7 @@ func HandleFolderTransfer(server *interfaces.Server, conn net.Conn, recipientId,
 	recipient, exists := server.Connections[recipientId]
 	if exists {
 		// Send folder transfer response to recipient
-		_, err := recipient.Conn.Write([]byte(fmt.Sprintf("/FOLDER_RESPONSE %s %s %d %s", recipientId, folderName, folderSize, recipient.StoreFilePath)))
+		_, err := recipient.Conn.Write([]byte(fmt.Sprintf("/FOLDER_RESPONSE\t%s\t%s\t%d\t%s\n", recipientId, folderName, folderSize, recipient.StoreFilePath)))
 		if err != nil {
 			fmt.Printf("Error sending folder response to %s: %v\n", recipientId, err)
 			return
